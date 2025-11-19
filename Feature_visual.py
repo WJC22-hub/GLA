@@ -1,6 +1,6 @@
 """
-特征提取可视化脚本
-用于可视化DriveVLM模型的多视角特征提取和融合过程
+Feature Extraction Visualization Script
+For visualizing the multi-view feature extraction and fusion process of DriveVLM model
 """
 
 import torch
@@ -26,7 +26,7 @@ VIT_SEQ_LENGTH = 49
 
 
 class FeatureExtractor:
-    """特征提取器 - 用于提取和可视化模型内部特征"""
+    """Feature Extractor - for extracting and visualizing model internal features"""
     
     def __init__(self, model, tokenizer):
         self.model = model
@@ -35,18 +35,18 @@ class FeatureExtractor:
         
     def extract_features(self, text_enc, imgs):
         """
-        提取模型各层特征
-        返回:
-        - vit_features: ViT encoder输出 (N, 6, 49, 768)
-        - gpa_weights: GPA注意力权重 (N, 6, 1)
-        - fused_img_features: GPA融合后的图像特征 (N, 49, 768)
-        - text_features: 文本特征 (N, S, H)
-        - final_features: 最终融合特征 (N, S+49, H)
+        Extract features from each layer of the model
+        Returns:
+        - vit_features: ViT encoder output (N, 6, 49, 768)
+        - gpa_weights: GPA attention weights (N, 6, 1)
+        - fused_img_features: GPA fused image features (N, 49, 768)
+        - text_features: Text features (N, S, H)
+        - final_features: Final fused features (N, S+49, H)
         """
         N = imgs.shape[0]
         mvp = self.model.mvp
         
-        # ========== 1. ViT特征提取 ==========
+        # ========== 1. ViT Feature Extraction ==========
         # Process into patches (N x 6 x 49 x H)
         vit_features = torch.stack([mvp.img_model._process_input(img) for img in imgs], dim=0)
         
@@ -60,7 +60,7 @@ class FeatureExtractor:
         vit_features += mvp.img_model.encoder.pos_embedding.repeat(N, 1, 1, 1)
         vit_features = vit_features[:, :, 1:]  # (N, 6, 49, 768)
         
-        # ========== 2. GPA权重计算 ==========
+        # ========== 2. GPA Weight Calculation ==========
         gpa_weights_list = []
         fused_features_list = []
         
@@ -68,15 +68,15 @@ class FeatureExtractor:
             batch_vit = vit_features[batch_idx]  # (6, 49, 768)
             batch_flat = batch_vit.flatten(start_dim=1)  # (6, 49*768)
             
-            # 计算Z和G
+            # Calculate Z and G
             z = mvp.Z(batch_flat)  # (6, gpa_hidden_size)
             g = mvp.G(batch_flat)  # (6, gpa_hidden_size)
             
-            # 计算注意力权重
+            # Calculate attention weights
             weights = torch.softmax(mvp.w(z * g), dim=0)  # (6, 1)
             gpa_weights_list.append(weights)
             
-            # GPA融合
+            # GPA fusion
             fused = torch.sum(weights * batch_flat, dim=0)  # (49*768,)
             fused = fused.reshape(VIT_SEQ_LENGTH, VIT_HIDDEN_STATE)  # (49, 768)
             fused_features_list.append(fused)
@@ -84,22 +84,22 @@ class FeatureExtractor:
         gpa_weights = torch.stack(gpa_weights_list, dim=0)  # (N, 6, 1)
         fused_img_features = torch.stack(fused_features_list, dim=0)  # (N, 49, 768)
         
-        # ========== 3. 投影到T5维度 ==========
+        # ========== 3. Projection to T5 Dimension ==========
         if hasattr(mvp, 'img_projection_layer'):
             fused_img_features = mvp.img_projection_layer(fused_img_features)
         
-        # 添加模态嵌入
+        # Add modal embeddings
         fused_img_features = fused_img_features + mvp.modal_embeddings(
             torch.ones((1, fused_img_features.shape[1]), dtype=torch.int, device=device)
         )
         
-        # ========== 4. 文本特征 ==========
+        # ========== 4. Text Features ==========
         text_features = self.model.model.get_input_embeddings()(text_enc)
         text_features = text_features + mvp.modal_embeddings(
             torch.zeros((1, text_features.shape[1]), dtype=torch.int, device=device)
         )
         
-        # ========== 5. 最终融合特征 ==========
+        # ========== 5. Final Fused Features ==========
         final_features = torch.cat([text_features, fused_img_features], dim=1)
         
         return {
@@ -113,17 +113,17 @@ class FeatureExtractor:
 
 def visualize_features(features, imgs_raw, question, answer, is_triggered, save_dir, sample_idx=0):
     """
-    可视化特征提取过程
+    Visualize the feature extraction process
     """
     os.makedirs(save_dir, exist_ok=True)
     
-    # ========== 1. 原始6视角图像 ==========
+    # ========== 1. Original 6-View Images ==========
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
     view_names = ['Front', 'Front-Right', 'Front-Left', 'Back', 'Back-Left', 'Back-Right']
     
     for idx, (ax, view_name) in enumerate(zip(axes.flat, view_names)):
         img = imgs_raw[sample_idx, idx].permute(1, 2, 0).numpy()
-        img = img.astype(np.uint8)  # 已经是0-255范围
+        img = img.astype(np.uint8)  # Already in 0-255 range
         ax.imshow(img)
         ax.set_title(f'{view_name}', fontsize=12, fontweight='bold')
         ax.axis('off')
@@ -134,15 +134,15 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '1_input_images.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 1_input_images.png")
+    print(f"✓ Saved: 1_input_images.png")
     
-    # ========== 2. GPA注意力权重 ==========
+    # ========== 2. GPA Attention Weights ==========
     weights = features['gpa_weights'][sample_idx].squeeze().numpy()
     
     fig, ax = plt.subplots(figsize=(12, 6))
     bars = ax.bar(view_names, weights, color='steelblue', alpha=0.8, edgecolor='black')
     
-    # 在柱子上方添加数值标签
+    # Add value labels above bars
     for bar, weight in zip(bars, weights):
         height = bar.get_height()
         ax.text(bar.get_x() + bar.get_width()/2., height,
@@ -157,9 +157,9 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '2_gpa_weights.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 2_gpa_weights.png")
+    print(f"✓ Saved: 2_gpa_weights.png")
     
-    # ========== 3. ViT特征热力图 (每个视角的平均特征) ==========
+    # ========== 3. ViT Features Heatmap (Averaged per view) ==========
     vit_feats = features['vit_features'][sample_idx]  # (6, 49, 768)
     vit_mean = vit_feats.mean(dim=1).numpy()  # (6, 768)
     
@@ -173,10 +173,10 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '3_vit_features_heatmap.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 3_vit_features_heatmap.png")
+    print(f"✓ Saved: 3_vit_features_heatmap.png")
     
-    # ========== 4. 特征相似度矩阵 (6个视角之间) ==========
-    # 计算余弦相似度
+    # ========== 4. Feature Similarity Matrix (Between 6 views) ==========
+    # Calculate cosine similarity
     vit_norm = vit_mean / (np.linalg.norm(vit_mean, axis=1, keepdims=True) + 1e-8)
     similarity = np.dot(vit_norm, vit_norm.T)
     
@@ -188,36 +188,36 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '4_similarity_matrix.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 4_similarity_matrix.png")
+    print(f"✓ Saved: 4_similarity_matrix.png")
     
-    # ========== 5. GPA融合前后对比 (PCA降维到2D) ==========
-    # 融合前: 6个视角
+    # ========== 5. GPA Fusion Comparison (PCA to 2D) ==========
+    # Before fusion: 6 views
     vit_flat = vit_feats.reshape(6, -1).numpy()  # (6, 49*768)
     
-    # 融合后: 1个特征
+    # After fusion: 1 feature
     fused = features['fused_img_features'][sample_idx].reshape(-1).numpy()  # (49*768,)
     
-    # PCA降维
+    # PCA dimensionality reduction
     pca = PCA(n_components=2)
     vit_2d = pca.fit_transform(vit_flat)
     fused_2d = pca.transform(fused.reshape(1, -1))
     
     fig, ax = plt.subplots(figsize=(10, 8))
     
-    # 绘制6个视角
+    # Plot 6 views
     scatter = ax.scatter(vit_2d[:, 0], vit_2d[:, 1], s=200, c=weights, 
                         cmap='viridis', alpha=0.7, edgecolors='black', linewidth=2)
     
-    # 标注视角名称
+    # Label view names
     for i, name in enumerate(view_names):
         ax.annotate(name, (vit_2d[i, 0], vit_2d[i, 1]), 
                    fontsize=10, ha='center', va='bottom', fontweight='bold')
     
-    # 绘制融合后的特征
+    # Plot fused feature
     ax.scatter(fused_2d[0, 0], fused_2d[0, 1], s=400, c='red', 
               marker='*', edgecolors='black', linewidth=2, label='Fused Feature', zorder=10)
     
-    # 绘制从各视角到融合特征的连线
+    # Draw lines from each view to fused feature
     for i in range(6):
         ax.plot([vit_2d[i, 0], fused_2d[0, 0]], 
                [vit_2d[i, 1], fused_2d[0, 1]], 
@@ -236,9 +236,9 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '5_gpa_fusion_pca.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 5_gpa_fusion_pca.png")
+    print(f"✓ Saved: 5_gpa_fusion_pca.png")
     
-    # ========== 6. 文本特征热力图 ==========
+    # ========== 6. Text Features Heatmap ==========
     text_feats = features['text_features'][sample_idx].numpy()  # (S, H)
     
     fig, ax = plt.subplots(figsize=(15, 6))
@@ -249,23 +249,23 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '6_text_features.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 6_text_features.png")
+    print(f"✓ Saved: 6_text_features.png")
     
-    # ========== 7. 最终融合特征 ==========
+    # ========== 7. Final Fused Features ==========
     final_feats = features['final_features'][sample_idx].numpy()  # (S+49, H)
     text_len = text_feats.shape[0]
     
     fig, ax = plt.subplots(figsize=(15, 8))
     im = ax.imshow(final_feats.T, cmap='coolwarm', aspect='auto')
     
-    # 添加分隔线标记文本和图像部分
+    # Add separator line marking text and image sections
     ax.axvline(x=text_len-0.5, color='white', linewidth=3, linestyle='--', label='Text|Image Boundary')
     
     ax.set_xlabel('Token Position', fontsize=12, fontweight='bold')
     ax.set_ylabel('Feature Dimension', fontsize=12, fontweight='bold')
     ax.set_title('Final Fused Features (Text + Image)', fontsize=14, fontweight='bold')
     
-    # 添加文本标注
+    # Add text annotations
     ax.text(text_len/2, -30, 'Text Features', ha='center', fontsize=11, 
            fontweight='bold', color='blue')
     ax.text(text_len + 24, -30, 'Image Features', ha='center', fontsize=11, 
@@ -275,19 +275,19 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '7_final_fused_features.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 7_final_fused_features.png")
+    print(f"✓ Saved: 7_final_fused_features.png")
     
-    # ========== 8. 特征统计摘要 ==========
+    # ========== 8. Feature Statistics Summary ==========
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
-    # 8.1 GPA权重分布
+    # 8.1 GPA Weight Distribution
     axes[0, 0].bar(view_names, weights, color='steelblue', alpha=0.8)
     axes[0, 0].set_title('GPA Weights', fontweight='bold')
     axes[0, 0].set_ylabel('Weight')
     axes[0, 0].tick_params(axis='x', rotation=45)
     axes[0, 0].grid(axis='y', alpha=0.3)
     
-    # 8.2 各层特征范数
+    # 8.2 Feature Norms by Layer
     vit_norm_values = np.linalg.norm(vit_mean, axis=1)
     fused_norm = np.linalg.norm(fused)
     text_norm = np.linalg.norm(text_feats)
@@ -300,7 +300,7 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     axes[0, 1].set_ylabel('L2 Norm')
     axes[0, 1].grid(axis='y', alpha=0.3)
     
-    # 8.3 ViT特征方差
+    # 8.3 ViT Feature Variance
     vit_var = vit_mean.var(axis=1)
     axes[1, 0].bar(view_names, vit_var, color='purple', alpha=0.8)
     axes[1, 0].set_title('ViT Feature Variance per View', fontweight='bold')
@@ -308,7 +308,7 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     axes[1, 0].tick_params(axis='x', rotation=45)
     axes[1, 0].grid(axis='y', alpha=0.3)
     
-    # 8.4 特征维度统计
+    # 8.4 Feature Dimensions
     dims = [vit_flat.shape[1], fused.shape[0], text_feats.shape[0]*text_feats.shape[1], 
             final_feats.shape[0]*final_feats.shape[1]]
     axes[1, 1].bar(labels, dims, color=['blue', 'green', 'orange', 'red'], alpha=0.7)
@@ -320,9 +320,9 @@ def visualize_features(features, imgs_raw, question, answer, is_triggered, save_
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, '8_feature_statistics.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"✓ 保存: 8_feature_statistics.png")
+    print(f"✓ Saved: 8_feature_statistics.png")
     
-    # ========== 保存文本信息 ==========
+    # ========== Save Text Information ==========
     trigger_status = "TRIGGERED (Poisoned)" if is_triggered else "CLEAN"
     info_text = f"""
 特征提取可视化报告
@@ -355,15 +355,15 @@ Final Features:      {final_feats.shape} -> (tokens+patches, hidden)
 最低权重视角:        {view_names[np.argmin(weights)]} ({weights.min():.4f})
 权重标准差:          {weights.std():.6f}
 
-ViT特征平均范数:     {vit_norm_values.mean():.4f}
-融合特征范数:        {fused_norm:.4f}
-文本特征范数:        {text_norm:.4f}
-最终特征范数:        {final_norm:.4f}
+Average ViT Feature Norm:     {vit_norm_values.mean():.4f}
+Fused Feature Norm:        {fused_norm:.4f}
+Text Feature Norm:        {text_norm:.4f}
+Final Feature Norm:        {final_norm:.4f}
 """
     
     with open(os.path.join(save_dir, 'feature_info.txt'), 'w', encoding='utf-8') as f:
         f.write(info_text)
-    print(f"✓ 保存: feature_info.txt")
+    print(f"✓ Saved: feature_info.txt")
 
 
 def load_sample(data_file, sample_idx, transform):
@@ -475,7 +475,7 @@ def main():
         args.data_file, args.sample_idx, transform
     )
     
-    trigger_status = "🔴 触发样本 (Triggered)" if is_triggered else "🟢 干净样本 (Clean)"
+    trigger_status = "🔴 Triggered Sample" if is_triggered else "🟢 Clean Sample"
     print(f"  状态: {trigger_status}")
     print(f"  问题: {question}")
     print(f"  答案: {answer}\n")

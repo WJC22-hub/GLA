@@ -151,29 +151,29 @@ if __name__ == '__main__':
     # please remove this line when evaluating the full validation set
     coco_eval.params['image_id'] = coco_result.getImgIds()
 
-    # 获取 Ground Truth (gts) 和 Results (res)
+    # Get Ground Truth (gts) and Results (res)
     gts = {}
     res = {}
     imgIds = coco_eval.params['image_id'] if 'image_id' in coco_eval.params else coco_result.getImgIds()
     
-    # 构建 gts 和 res 字典 - 修复：使用 coco 和 coco_result 而不是 cocoGt 和 cocoRes
+    # Build gts and res dictionaries - Fix: use coco and coco_result instead of cocoGt and cocoRes
     for i in range(len(imgIds)):
         gts[imgIds[i]] = coco.imgToAnns[imgIds[i]]
         res[imgIds[i]] = coco_result.imgToAnns[imgIds[i]]
 
-    # 初始化评估器
+    # Initialize evaluators
     from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
     from pycocoevalcap.bleu.bleu import Bleu
     from pycocoevalcap.meteor.meteor import Meteor
     from pycocoevalcap.rouge.rouge import Rouge
     from pycocoevalcap.cider.cider import Cider
 
-    # 准备数据
+    # Prepare data
     tokenizer = PTBTokenizer()
     gts_tokenize = tokenizer.tokenize(gts)
     res_tokenize = tokenizer.tokenize(res)
 
-    # 计算各个指标
+    # Calculate metrics
     eval_results = {}
     
     # BLEU
@@ -200,12 +200,12 @@ if __name__ == '__main__':
     cider_score, cider_scores = cider_scorer.compute_score(gts_tokenize, res_tokenize)
     eval_results['CIDEr'] = cider_score
 
-    # 将结果存储到 coco_eval 对象中
+    # Store results in coco_eval object
     coco_eval.eval = eval_results
     coco_eval.evalImgs = {}
 
-    # 打印评估结果
-    print("评估完成，结果:")
+    # Print evaluation results
+    print("Evaluation completed, results:")
     for metric, score in coco_eval.eval.items():
         print(f"{metric}: {score}")
 
