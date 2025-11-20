@@ -26,5 +26,7 @@ conda env create -f environment.yml
 conda activate GLA
 ```
 ## 🔧 Training
-To run training, run ```bash python train_backdoor_mix.py --pretrained-model multi_frame_results/T5-Medium/latest_model.pth```
+To run training, run ```python train_backdoor_mix.py --pretrained-model multi_frame_results/T5-Medium/latest_model.pth```
 For more information on other hyperparameters such as loading checkpoints or altering poison-sample-num, run python train_backdoor_mix.py --help.
+## 🔧 Training
+To run eval, run ```bash eval.sh```
