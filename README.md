@@ -8,8 +8,8 @@ GLA: ...
 > **Abstract:** This repository contains the official implementation of the paper **"[Insert Your Paper Title Here]"**. We propose **GLA**, a novel backdoor attack method that achieves high Attack Success Rate (ASR) with low poisoning rates, maintaining stealthiness against state-of-the-art defenses.
 
 <div align="center">
-<img src="Visual_tool/improved_3d_ridge_plot_v2.png" width="800px">
-<p><i>Figure 1: Comparison of Attack Success Rate (ASR) vs. Poisoning Rate under different methods. Our GLA demonstrates superior performance even at low poisoning ratios.</i></p>
+<img src="Fig/overview.png" width="800px">
+<p><i>Figure 1:Overview of our proposed multimodal backdoor attack(GLA) framework. </i></p>
 </div>
 
 ## 📢 News
