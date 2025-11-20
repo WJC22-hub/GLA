@@ -9,12 +9,12 @@ GLA: ...
 
 <div align="center">
 <img src="Fig/overview.png" width="800px">
-<p><i>Figure 1:Overview of our proposed multimodal backdoor attack(GLA) framework. </i></p>
+<p><i>Overview of our proposed multimodal backdoor attack(GLA) framework. </i></p>
 </div>
 
 ## 📢 News
 - **[2025-11-20]** Code and visualization tools released.
-- **[2025-xx-xx]** Paper accepted to [Conference Name].
+<!-- - **[2025-xx-xx]** Paper accepted to [Conference Name]. -->
 
 ## 🛠️ Environment Setup
 
