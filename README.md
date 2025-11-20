@@ -22,8 +22,5 @@ To set up the environment, we recommend using [Anaconda](https://www.anaconda.co
 
 ```bash
 # Create a virtual environment
-conda create -n gla python=3.8
-conda activate gla
-
-# Install dependencies
-pip install -r requirements.txt
+conda env create -f environment.yml
+conda activate GLA
