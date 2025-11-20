@@ -13,7 +13,7 @@ GLA: ...
 </div>
 
 ## 📢 News
-- **[2025-11-20]** Code and visualization tools released.
+- **[2025-11-20]** Code released.
 <!-- - **[2025-xx-xx]** Paper accepted to [Conference Name]. -->
 
 ## 🛠️ Environment Setup
@@ -24,3 +24,7 @@ To set up the environment, we recommend using [Anaconda](https://www.anaconda.co
 # Create a virtual environment
 conda env create -f environment.yml
 conda activate GLA
+```
+## 🔧 Training
+To run training, run python train_backdoor_mix.py --pretrained-model multi_frame_results/T5-Medium/latest_model.pth
+For more information on other hyperparameters such as loading checkpoints or altering poison-sample-num, run python train_backdoor_mix.py --help.

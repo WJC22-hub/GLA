@@ -1,3 +1,6 @@
 /data/
 /multi_frame_results/
 /visualizations/
+/Visual_tool/
+/.vscode/
+/__pycache__/
